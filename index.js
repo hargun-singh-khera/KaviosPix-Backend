@@ -312,7 +312,7 @@ app.get("/albums/:albumId/images", verifyJWT, async (req, res) => {
     }
 })
 
-app.get("/albums/:albumId/images/favorites", async (req, res) => {
+app.get("/albums/:albumId/images/favorites", verifyJWT, async (req, res) => {
     try {
         const { albumId } = req.params;
         const images = await Image.find({ albumId, isFavorite: true });
@@ -322,7 +322,7 @@ app.get("/albums/:albumId/images/favorites", async (req, res) => {
     }
 })
 
-app.get("/albums/:albumId/images", async (req, res) => {
+app.get("/albums/:albumId/images", verifyJWT, async (req, res) => {
     try {
         const { albumId } = req.params;
         const { tags } = req.query;
