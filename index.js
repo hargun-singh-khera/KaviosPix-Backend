@@ -37,9 +37,13 @@ cloudinary.config({
 
 const PORT = process.env.PORT || 3000;
 
-app.get("/user/profile/google", async (req, res) => {
+app.get("/", (req, res) => {
+    res.status(200).json({ message: "Welcome to Kaviospix API" });
+})
+
+app.get("/user/profile/google", verifyAccessToken, async (req, res) => {
     try {
-        const { access_token } = req.body;
+        const { access_token } = req.cookies;
         const googleUserDataResponse = await axios.get(
             "https://www.googleapis.com/oauth2/v2/userinfo",
             {
