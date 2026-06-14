@@ -10,10 +10,22 @@ const imageSchema = mongoose.Schema({
         required: true
     },
     imageUrl: String,
-    tags: [String],
+    tags: [{
+        type: String,
+        lowercase: true
+    }],
     person: String,
     isFavorite: Boolean,
-    comments: [String],
+    comments: [
+        {
+            user: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User",
+            },
+            comment: String,
+            createdAt: Date,
+        }
+    ],
     size: String,
 }, { timestamps: true });
 

@@ -17,7 +17,7 @@ require("dotenv").config();
 const app = express();
 app.use(cors({
     credentials: true,
-    origin: "*"
+    origin: process.env.FRONTEND_URL
 }));
 app.use(express.json());
 app.use(cookieParser());
@@ -43,6 +43,7 @@ app.get("/", (req, res) => {
 
 app.get("/user/profile/google", verifyAccessToken, async (req, res) => {
     try {
+        // console.log("req.cookies", req.cookies)
         const { access_token } = req.cookies;
         const googleUserDataResponse = await axios.get(
             "https://www.googleapis.com/oauth2/v2/userinfo",
@@ -52,22 +53,22 @@ app.get("/user/profile/google", verifyAccessToken, async (req, res) => {
                 }
             }
         )
+        // console.log("googleUserDataResponse", googleUserDataResponse?.data);
         // issue a JWT upon successful authentication
         const googleUserData = googleUserDataResponse?.data
-        // console.log("googleUserDataResponse", googleUserDataResponse);
         let user = await User.findOne({ email: googleUserData.email });
         if (!user) {
-            user = new User({ email: googleUserData.email });
+            user = new User({ name: googleUserData.name, avatar: googleUserData.picture, email: googleUserData.email });
             await user.save();
         }
         // console.log("user", user);
         const token = jwt.sign({ _id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: "24h" });
-        console.log("token", token);
+        // console.log("token", token);
         // Use JWT for all subsequent API requests to ensure authentication.
-        res.status(200).json({ user: googleUserDataResponse.data });
+        res.status(200).json({ user: googleUserDataResponse.data, token });
     } catch (error) {
         console.log("Error", error)
-        res.status(500).json({ error: "Could not fetch user google profile "});
+        res.status(500).json({ error: "Could not fetch user google profile " });
     }
 })
 
@@ -104,7 +105,7 @@ app.get("/auth/google/callback", async (req, res) => {
             httpOnly: true,
             maxAge: 60 * 1000,
         });
-        res.redirect(`${process.env.FRONTEND_URL}/v2/profile/google`)
+        res.redirect(`${process.env.FRONTEND_URL}/dashboard`)
     } catch (error) {
         console.error(error);
     }
@@ -131,10 +132,10 @@ app.post("/albums", verifyJWT, async (req, res) => {
 app.put("/albums/:albumId", verifyJWT, async (req, res) => {
     try {
         const { albumId } = req.params;
-        const { description } = req.body;
+        const { name, description } = req.body;
         const album = await Album.findOneAndUpdate(
             { _id: albumId, ownerId: req.user._id },
-            { description },
+            { name, description },
             { new: true }
         )
         if (!album) {
@@ -151,17 +152,17 @@ app.post("/albums/:albumId/share", verifyJWT, async (req, res) => {
     try {
         const { albumId } = req.params;
         const { emails } = req.body;
-        const users = await User.find({ email: { $in: emails }});
+        const users = await User.find({ email: { $in: emails } });
         const existingEmails = users.map(user => user.email);
         const missingEmails = emails.filter(email => !existingEmails.includes(email));
 
         if (missingEmails.length > 0) {
-            return res.status(404).json({ message: `User with email ${missingEmails} does not exists` });
+            return res.status(404).json({ message: `User with email ${missingEmails.join(", ")} does not exists` });
         }
 
         const album = await Album.findOneAndUpdate(
             { _id: albumId, ownerId: req.user._id },
-            { sharedWith: emails },
+            { $addToSet: { sharedWith: { $each: emails } } },
             { new: true }
         )
         if (!album) {
@@ -178,10 +179,14 @@ app.delete("/albums/:albumId", verifyJWT, async (req, res) => {
     try {
         // Ensure only the owner of the album can delete it.
         const { albumId } = req.params;
-        const album = await Album.findOneAndDelete({ _id: albumId, ownerId: req.user._id });
+        const album = await Album.findOne({ _id: albumId });
         if (!album) {
-            return res.status(404).json({ message: "Album not found or Access Denied" });
+            return res.status(404).json({ message: "Album not found" });
         }
+        if (album.ownerId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+        await Album.deleteOne({ _id: albumId });
         await Image.deleteMany({ albumId });
         res.status(200).json({ message: "Album & it's images deleted successfully", album });
     } catch (error) {
@@ -189,7 +194,7 @@ app.delete("/albums/:albumId", verifyJWT, async (req, res) => {
     }
 })
 
-app.post("/albums/:albumId/images", upload.single("image"), verifyJWT, async (req, res) => {
+app.post("/albums/:albumId/images", verifyJWT, upload.single("image"), async (req, res) => {
     try {
         const { albumId } = req.params;
         const file = req.file;
@@ -202,7 +207,8 @@ app.post("/albums/:albumId/images", upload.single("image"), verifyJWT, async (re
         if (!["jpg", "png", "gif"].includes(path.extname(file.originalname).slice(1))) {
             return res.status(400).json({ message: "Invalid file type" });
         }
-        if (fs.statSync(file.path).size > 5 * 1024 * 1024) {
+        const imageSize = fs.statSync(file.path).size;
+        if (imageSize > 5 * 1024 * 1024) {
             return res.status(400).json({ message: "File size limit exceeded (5MB)" });
         }
         const album = await Album.findById(albumId);
@@ -214,14 +220,15 @@ app.post("/albums/:albumId/images", upload.single("image"), verifyJWT, async (re
         }
         // upload to cloudinary
         const result = await cloudinary.uploader.upload(file.path, { folder: "uploads" });
-        const { tags, person, isFavorite } = req.body;
+        const { tags, person } = req.body;
         const image = new Image({
             albumId,
             name: file.originalname,
             imageUrl: result.secure_url,
             tags,
             person,
-            isFavorite,
+            isFavorite: false,
+            size: imageSize,
         })
         await image.save();
         res.status(201).json({ message: "Image uploaded successfully", image });
@@ -261,13 +268,21 @@ app.post("/albums/:albumId/images/:imageId/comments", verifyJWT, async (req, res
         const { comment } = req.body;
         const image = await Image.findByIdAndUpdate(
             imageId,
-            { $push: { comments: comment }},
+            {
+                $push: {
+                    comments: {
+                        user: req.user._id,
+                        comment,
+                        createdAt: Date.now(),
+                    }
+                }
+            },
             { new: true }
-        )
+        ).populate("comments.user");
         if (!image) {
             return res.status(404).json({ message: "Image not found" });
         }
-        res.status(200).json({ message: "Comment added successfully", image });
+        res.status(200).json({ message: "Comment added successfully", comment: image.comments[image.comments.length-1] });
     } catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
@@ -277,7 +292,7 @@ app.delete("/albums/:albumId/images/:imageId", verifyJWT, async (req, res) => {
     try {
         const { albumId, imageId } = req.params;
         const album = await Album.findById(albumId);
-        if (req.user._id !== album.ownerId) {
+        if (req.user._id.toString() !== album.ownerId.toString()) {
             return res.status(403).json({ message: "Access denied" });
         }
         const image = await Image.findByIdAndDelete(imageId);
@@ -293,7 +308,19 @@ app.delete("/albums/:albumId/images/:imageId", verifyJWT, async (req, res) => {
 app.get("/albums", verifyJWT, async (req, res) => {
     try {
         const albums = await Album.find();
-        res.status(200).json({ message: "Albums fetched successfully", albums });
+        
+        const sharedAlbums = albums.filter(album => album.sharedWith.includes(req.user.email.toLowerCase()));
+        const ownedAlbums = albums.filter(album => album.ownerId.toString() === req.user._id.toString());
+        
+        const albumsCombined = [...sharedAlbums, ...ownedAlbums];
+        const modifiedAlbums = [];
+
+        for (const album of albumsCombined) {
+            const images = await Image.find({ albumId: album._id })
+            const modifiedAlbum = { ...album.toObject(), thumbnail: images[0]?.imageUrl, imagesCount: images.length };
+            modifiedAlbums.push(modifiedAlbum);
+        }
+        res.status(200).json({ message: "Albums fetched successfully", albums: modifiedAlbums });
     } catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
@@ -302,15 +329,15 @@ app.get("/albums", verifyJWT, async (req, res) => {
 app.get("/albums/:albumId/images", verifyJWT, async (req, res) => {
     try {
         const { albumId } = req.params;
+        const { tags } = req.query;
         const album = await Album.findById(albumId);
         if (!album) {
             return res.status(404).json({ message: "Album not found" });
         }
-        if (!album.sharedWith.includes(req.user.email)) {
-            return res.status(403).json({ message: "Access denied" });
-        }
-        const images = await Image.find({ albumId });
-        res.status(200).json({ message: "Images fetched successfully", images });
+        const query = { albumId };
+        if (tags) query.tags = { $in: [tags] };
+        const images = await Image.find(query).populate("comments.user");
+        res.status(200).json({ message: "Images fetched successfully", album, images });
     } catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
@@ -326,12 +353,11 @@ app.get("/albums/:albumId/images/favorites", verifyJWT, async (req, res) => {
     }
 })
 
-app.get("/albums/:albumId/images", verifyJWT, async (req, res) => {
+
+app.get("/users", verifyJWT, async (req, res) => {
     try {
-        const { albumId } = req.params;
-        const { tags } = req.query;
-        const images = await Image.find({ albumId, tags });
-        res.status(200).json({ message: "Images fetched successfully", images });
+        const users = await User.find({ _id: { $ne: req.user._id }});
+        res.status(200).json({ message: "Users fetched successfully", users });
     } catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
