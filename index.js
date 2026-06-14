@@ -62,7 +62,7 @@ app.get("/user/profile/google", verifyAccessToken, async (req, res) => {
             await user.save();
         }
         // console.log("user", user);
-        const token = jwt.sign({ _id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: "24h" });
+        const token = jwt.sign({ _id: user._id, name: googleUserData.name, email: user.email }, process.env.JWT_SECRET, { expiresIn: "24h" });
         // console.log("token", token);
         // Use JWT for all subsequent API requests to ensure authentication.
         res.status(200).json({ user: googleUserDataResponse.data, token });
@@ -141,7 +141,9 @@ app.put("/albums/:albumId", verifyJWT, async (req, res) => {
         if (!album) {
             return res.status(404).json({ message: "Album not found or Access Denied" });
         }
-        res.status(201).json({ message: "Album description updated successfully", album });
+        const images = await Image.find({ albumId: album._id });
+        const modifiedAlbum = { ...album.toObject(), thumbnail: images[0]?.imageUrl, imagesCount: images.length };
+        res.status(201).json({ message: "Album description updated successfully", album: modifiedAlbum });
     } catch (error) {
         console.log("Error", error);
         res.status(500).json({ message: "Internal Server Error" })

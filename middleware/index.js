@@ -9,13 +9,13 @@ function verifyAccessToken(req, res, next) {
 
 const verifyJWT = async (req, res, next) => {
     const token = req.headers["authorization"]?.split(" ")[1];
+    console.log("token:", token);
     if (!token) {
         return res.status(401).json({ message: "No token provided" })
     }
     try {
-        // console.log("token before verify:", token);
         const decodedToken = jwt.verify(token, process.env.JWT_SECRET)
-        // console.log("decodedToken", decodedToken);
+        console.log("decodedToken", decodedToken);
         req.user = decodedToken
         next()
     } catch (error) {
