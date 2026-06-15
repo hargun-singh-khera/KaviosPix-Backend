@@ -73,7 +73,8 @@ app.get("/user/profile/google", verifyAccessToken, async (req, res) => {
 })
 
 app.get("/auth/google", (req, res) => {
-    const googleAuthUrl = `http://accounts.google.com/o/oauth2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=https://kavios-pix-backend-pied.vercel.app/auth/google/callback&response_type=code&scope=profile email`;
+    // const googleAuthUrl = `http://accounts.google.com/o/oauth2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=https://kavios-pix-backend-pied.vercel.app/auth/google/callback&response_type=code&scope=profile email`;
+    const googleAuthUrl = `http://accounts.google.com/o/oauth2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=http://localhost:${PORT}/auth/google/callback&response_type=code&scope=profile email`;
     res.redirect(googleAuthUrl);
 })
 
@@ -84,6 +85,7 @@ app.get("/auth/google/callback", async (req, res) => {
     }
     let accessToken;
     try {
+        console.log("auth callback")
         const tokenResponse = await axios.post(
             'https://oauth2.googleapis.com/token',
             {
@@ -91,7 +93,8 @@ app.get("/auth/google/callback", async (req, res) => {
                 client_secret: process.env.GOOGLE_CLIENT_SECRET,
                 code,
                 grant_type: "authorization_code",
-                redirect_uri: `https://kavios-pix-backend-pied.vercel.app/auth/google/callback`
+                // redirect_uri: `https://kavios-pix-backend-pied.vercel.app/auth/google/callback`
+                redirect_uri: `http://localhost:${PORT}/auth/google/callback`
             },
             {
                 headers: {
@@ -100,9 +103,12 @@ app.get("/auth/google/callback", async (req, res) => {
             }
         )
         accessToken = tokenResponse.data.access_token;
+        console.log("process.env.FRONTEND_URL", process.env.FRONTEND_URL);
         // console.log("accessToken", accessToken);   
         res.cookie("access_token", accessToken, {
             httpOnly: true,
+            secure: true,
+            sameSite: "none",
             maxAge: 60 * 1000,
         });
         res.redirect(`${process.env.FRONTEND_URL}/dashboard`)
@@ -284,7 +290,7 @@ app.post("/albums/:albumId/images/:imageId/comments", verifyJWT, async (req, res
         if (!image) {
             return res.status(404).json({ message: "Image not found" });
         }
-        res.status(200).json({ message: "Comment added successfully", comment: image.comments[image.comments.length-1] });
+        res.status(200).json({ message: "Comment added successfully", comment: image.comments[image.comments.length - 1] });
     } catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
     }
@@ -310,10 +316,10 @@ app.delete("/albums/:albumId/images/:imageId", verifyJWT, async (req, res) => {
 app.get("/albums", verifyJWT, async (req, res) => {
     try {
         const albums = await Album.find();
-        
+
         const sharedAlbums = albums.filter(album => album.sharedWith.includes(req.user.email.toLowerCase()));
         const ownedAlbums = albums.filter(album => album.ownerId.toString() === req.user._id.toString());
-        
+
         const albumsCombined = [...sharedAlbums, ...ownedAlbums];
         const modifiedAlbums = [];
 
@@ -358,7 +364,7 @@ app.get("/albums/:albumId/images/favorites", verifyJWT, async (req, res) => {
 
 app.get("/users", verifyJWT, async (req, res) => {
     try {
-        const users = await User.find({ _id: { $ne: req.user._id }});
+        const users = await User.find({ _id: { $ne: req.user._id } });
         res.status(200).json({ message: "Users fetched successfully", users });
     } catch (error) {
         res.status(500).json({ message: "Internal Server Error" });
