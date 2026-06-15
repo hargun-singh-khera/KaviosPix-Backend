@@ -109,7 +109,7 @@ app.get("/auth/google/callback", async (req, res) => {
             httpOnly: true,
             secure: true,
             sameSite: "none",
-            maxAge: 60 * 1000,
+            maxAge: 24 * 60 * 60 * 1000
         });
         res.redirect(`${process.env.FRONTEND_URL}/dashboard`)
     } catch (error) {
