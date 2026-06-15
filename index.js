@@ -73,7 +73,7 @@ app.get("/user/profile/google", verifyAccessToken, async (req, res) => {
 })
 
 app.get("/auth/google", (req, res) => {
-    const googleAuthUrl = `http://accounts.google.com/o/oauth2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=https://kavios-pix-backend-pied.vercel.app/auth/google/callback&response_type=code&scope=profile email`;
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=https://kavios-pix-backend-pied.vercel.app/auth/google/callback&response_type=code&scope=profile email`;
     // const googleAuthUrl = `http://accounts.google.com/o/oauth2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=http://localhost:${PORT}/auth/google/callback&response_type=code&scope=profile email`;
     res.redirect(googleAuthUrl);
 })
