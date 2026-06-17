@@ -213,7 +213,7 @@ app.post("/albums/:albumId/images", verifyJWT, upload.single("image"), async (re
             return res.status(400).json({ message: "No file uploaded" });
         }
         if (!["jpg", "png", "gif"].includes(path.extname(file.originalname).slice(1))) {
-            return res.status(400).json({ message: "Invalid file type" });
+            return res.status(400).json({ message: "Invalid file type. Only JPG, PNG, and GIF files are allowed" });
         }
         const imageSize = fs.statSync(file.path).size;
         if (imageSize > 5 * 1024 * 1024) {
@@ -317,19 +317,24 @@ app.get("/albums", verifyJWT, async (req, res) => {
     try {
         const albums = await Album.find();
 
-        const sharedAlbums = albums.filter(album => album.sharedWith.includes(req.user.email.toLowerCase()));
-        const ownedAlbums = albums.filter(album => album.ownerId.toString() === req.user._id.toString());
+        const sharedAlbums = albums
+            .filter(album => album.sharedWith.includes(req.user.email.toLowerCase()))
+            .map(album => ({ ...album.toObject(), isShared: true }));
+        const ownedAlbums = albums
+            .filter(album => album.ownerId.toString() === req.user._id.toString())
+            .map(album => ({ ...album.toObject(), isShared: false }));
 
         const albumsCombined = [...sharedAlbums, ...ownedAlbums];
         const modifiedAlbums = [];
 
         for (const album of albumsCombined) {
             const images = await Image.find({ albumId: album._id })
-            const modifiedAlbum = { ...album.toObject(), thumbnail: images[0]?.imageUrl, imagesCount: images.length };
+            const modifiedAlbum = { ...album, thumbnail: images[0]?.imageUrl, imagesCount: images.length };
             modifiedAlbums.push(modifiedAlbum);
         }
         res.status(200).json({ message: "Albums fetched successfully", albums: modifiedAlbums });
     } catch (error) {
+        console.error("Error", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 })
