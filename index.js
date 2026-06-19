@@ -22,7 +22,7 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-await initializeDatabase();
+initializeDatabase();
 
 // const JWT_SECRET = "kaviospix";
 
