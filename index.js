@@ -108,9 +108,8 @@ app.get("/auth/google/callback", async (req, res) => {
         res.cookie("access_token", accessToken, {
             httpOnly: true,
             secure: true,
-            sameSite: "lax",
+            sameSite: "None",
             maxAge: 24 * 60 * 60 * 1000,
-            domain: "kavios-pix-backend-pied.vercel.app"
         });
         res.redirect(`${process.env.FRONTEND_URL}/dashboard`)
     } catch (error) {
