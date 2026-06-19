@@ -41,6 +41,16 @@ app.get("/", (req, res) => {
     res.status(200).json({ message: "Welcome to Kaviospix API" });
 })
 
+app.get("/debug-cookies", (req, res) => {
+    console.log("cookie header:", req.headers.cookie);
+    console.log("cookies:", req.cookies);
+
+    res.json({
+        raw: req.headers.cookie,
+        parsed: req.cookies
+    });
+});
+
 app.get("/debug", (req, res) => { 
     res.json({ deployedAt: new Date().toISOString(), frontendUrl: process.env.FRONTEND_URL });
 });
