@@ -9,9 +9,6 @@ function verifyAccessToken(req, res, next) {
 }
 
 const verifyJWT = async (req, res, next) => {
-    console.log("origin", req.headers.origin);
-    console.log("cookie header", req.headers.cookie);
-    console.log("parsed cookies", req.cookies);
     const token = req.headers["authorization"]?.split(" ")[1];
     console.log("token:", token);
     if (!token) {
