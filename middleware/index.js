@@ -1,9 +1,6 @@
 const jwt = require("jsonwebtoken");
 
 function verifyAccessToken(req, res, next) {
-    console.log("origin", req.headers.origin);
-    console.log("cookie header", req.headers.cookie);
-    console.log("parsed cookies", req.cookies);
     console.log("req.cookies inside verify access token", req.cookies)
     if (!req.cookies.access_token) {
         return res.status(403).json({ message: "Access denied" });
@@ -12,6 +9,9 @@ function verifyAccessToken(req, res, next) {
 }
 
 const verifyJWT = async (req, res, next) => {
+    console.log("origin", req.headers.origin);
+    console.log("cookie header", req.headers.cookie);
+    console.log("parsed cookies", req.cookies);
     const token = req.headers["authorization"]?.split(" ")[1];
     console.log("token:", token);
     if (!token) {
