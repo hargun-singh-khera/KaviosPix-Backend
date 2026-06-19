@@ -41,6 +41,10 @@ app.get("/", (req, res) => {
     res.status(200).json({ message: "Welcome to Kaviospix API" });
 })
 
+app.get("/debug", (req, res) => { 
+    res.json({ deployedAt: new Date().toISOString(), frontendUrl: process.env.FRONTEND_URL });
+});
+
 app.get("/user/profile/google", verifyAccessToken, async (req, res) => {
     try {
         // console.log("req.cookies", req.cookies)
