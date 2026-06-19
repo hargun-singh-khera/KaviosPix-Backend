@@ -41,12 +41,6 @@ app.get("/", (req, res) => {
     res.status(200).json({ message: "Welcome to Kaviospix API" });
 })
 
-app.get("/debug-db", (req, res) => {
-  res.json({
-    readyState: mongoose.connection.readyState
-  });
-});
-
 app.get("/user/profile/google", verifyAccessToken, async (req, res) => {
     try {
         // console.log("req.cookies", req.cookies)
