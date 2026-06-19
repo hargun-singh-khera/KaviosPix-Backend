@@ -22,7 +22,7 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-initializeDatabase();
+await initializeDatabase();
 
 // const JWT_SECRET = "kaviospix";
 
@@ -41,18 +41,10 @@ app.get("/", (req, res) => {
     res.status(200).json({ message: "Welcome to Kaviospix API" });
 })
 
-app.get("/debug-cookies", (req, res) => {
-    console.log("cookie header:", req.headers.cookie);
-    console.log("cookies:", req.cookies);
-
-    res.json({
-        raw: req.headers.cookie,
-        parsed: req.cookies
-    });
-});
-
-app.get("/debug", (req, res) => { 
-    res.json({ deployedAt: new Date().toISOString(), frontendUrl: process.env.FRONTEND_URL });
+app.get("/debug-db", (req, res) => {
+  res.json({
+    readyState: mongoose.connection.readyState
+  });
 });
 
 app.get("/user/profile/google", verifyAccessToken, async (req, res) => {
