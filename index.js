@@ -24,8 +24,6 @@ app.use(cookieParser());
 
 initializeDatabase();
 
-// const JWT_SECRET = "kaviospix";
-
 const storage = multer.diskStorage({});
 const upload = multer({ storage });
 
@@ -73,8 +71,7 @@ app.get("/user/profile/google", verifyAccessToken, async (req, res) => {
 })
 
 app.get("/auth/google", (req, res) => {
-    const googleAuthUrl = `https://accounts.google.com/o/oauth2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=https://kavios-pix-backend-pied.vercel.app/auth/google/callback&response_type=code&scope=profile email`;
-    // const googleAuthUrl = `http://accounts.google.com/o/oauth2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=http://localhost:${PORT}/auth/google/callback&response_type=code&scope=profile email`;
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${process.env.BACKEND_URL}/auth/google/callback&response_type=code&scope=profile email`;
     res.redirect(googleAuthUrl);
 })
 
@@ -93,8 +90,7 @@ app.get("/auth/google/callback", async (req, res) => {
                 client_secret: process.env.GOOGLE_CLIENT_SECRET,
                 code,
                 grant_type: "authorization_code",
-                redirect_uri: `https://kavios-pix-backend-pied.vercel.app/auth/google/callback`
-                // redirect_uri: `http://localhost:${PORT}/auth/google/callback`
+                redirect_uri: `${process.env.BACKEND_URL}/auth/google/callback`
             },
             {
                 headers: {
@@ -110,7 +106,6 @@ app.get("/auth/google/callback", async (req, res) => {
             secure: true,
             sameSite: "lax",
             maxAge: 24 * 60 * 60 * 1000,
-            domain: "kavios-pix-backend-pied.vercel.app"
         });
         res.redirect(`${process.env.FRONTEND_URL}/dashboard`)
     } catch (error) {
